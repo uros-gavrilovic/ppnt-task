@@ -7,6 +7,8 @@ import org.example.util.AppConfig;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class App {
     static final int DATA_SIZE = 4; // 4 Bytes for each data segment in the package
@@ -18,15 +20,14 @@ public class App {
         try {
             Socket socket = new Socket(serverAddress, serverPort);
             System.out.println("Connected to the server.");
-
             DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
 
-            while(true) {
+            while (true) {
                 NetworkPackage networkPackage;
 
-                byte[] packageIdBytes = new byte[DATA_SIZE];
-                dataInputStream.readFully(packageIdBytes); // Read DATA_SIZE (4) number of bytes from the input stream
-                int packageId = byteArrayToInt(packageIdBytes); // Convert bytes from the input stream to an integer
+                byte[] packageBytes = new byte[DATA_SIZE];
+                dataInputStream.readFully(packageBytes);
+                int packageId = convertToLittleEndian(packageBytes);
 
                 switch (packageId) {
                     case 1:
@@ -39,22 +40,19 @@ public class App {
                         throw new IllegalArgumentException("Unknown package ID: " + packageId);
                 }
 
-                byte[] lenBytes = new byte[DATA_SIZE];
-                dataInputStream.readFully(lenBytes);
-                networkPackage.setLength(byteArrayToInt(packageIdBytes));
+                dataInputStream.readFully(packageBytes);
+                networkPackage.setLength(convertToLittleEndian(packageBytes));
 
-                byte[] idBytes = new byte[DATA_SIZE];
-                dataInputStream.readFully(idBytes);
-                networkPackage.setLength(byteArrayToInt(idBytes));
+                dataInputStream.readFully(packageBytes);
+                networkPackage.setId(convertToLittleEndian(packageBytes));
 
                 if(networkPackage instanceof DummyPackage) {
-                    byte[] delayBytes = new byte[DATA_SIZE];
-                    dataInputStream.readFully(delayBytes);
-                    ((DummyPackage) networkPackage).setDelay(byteArrayToInt(delayBytes));
+                    dataInputStream.readFully(packageBytes);
+                    ((DummyPackage) networkPackage).setDelay(convertToLittleEndian(packageBytes));
                 }
 
                 System.out.println(networkPackage);
-                System.out.println("--------------------");
+                System.out.println("--------------------------------------------------------------");
             }
 
         } catch (IOException e) {
@@ -62,11 +60,7 @@ public class App {
         }
     }
 
-    // Helper method to convert a byte array to an integer
-    private static int byteArrayToInt(byte[] byteArray) {
-        return (byteArray[3] & 0xFF) << 24 |
-                (byteArray[2] & 0xFF) << 16 |
-                (byteArray[1] & 0xFF) << 8 |
-                (byteArray[0] & 0xFF);
+    private static int convertToLittleEndian(byte byteArray[]) {
+        return ByteBuffer.wrap(byteArray).order(ByteOrder.LITTLE_ENDIAN).getInt();
     }
 }
