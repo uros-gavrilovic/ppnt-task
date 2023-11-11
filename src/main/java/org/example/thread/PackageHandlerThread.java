@@ -3,7 +3,6 @@ package org.example.thread;
 import lombok.Data;
 import org.example.model.DummyPackage;
 import org.example.model.NetworkPackage;
-
 import java.io.*;
 import java.net.Socket;
 
@@ -17,38 +16,24 @@ public class PackageHandlerThread implements Runnable {
 
     @Override
     public void run() {
-        if (networkPackage instanceof DummyPackage) {
-            // Only process and send back DummyPackage
             try {
-                Thread.sleep(((DummyPackage) networkPackage).getDelay() * 1000);
-                ((DummyPackage) networkPackage).setCompleted(true);
-                writeToSocket((DummyPackage) networkPackage);
+                if (networkPackage instanceof DummyPackage) {
+                    // Only process and send back DummyPackage
+
+                    Thread.sleep(((DummyPackage) networkPackage).getDelay() * 1000);
+                    writeToSocket((DummyPackage) networkPackage);
+                    ((DummyPackage) networkPackage).setCompleted(true);
+                }
             } catch (InterruptedException e) {
-                System.out.println("Package (" + networkPackage.getId() + ") interrupted! Should be saved in file");
+                System.out.println("Package (#" + networkPackage.getId() + ") interrupted!");
             }
-        }
-        writeToFile(networkPackage);
     }
-
-    private void writeToFile(NetworkPackage networkPackage) {
-        try (OutputStream fileOutputStream = new FileOutputStream("packages.dat", true);
-             ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream)) {
-
-            // Write the object to the file
-            objectOutputStream.writeObject(networkPackage);
-            objectOutputStream.close();
-            System.out.println("NetworkPackage appended to file successfully.");
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
 
     private void writeToSocket(DummyPackage dummyPackage) {
-        try (Socket socket = new Socket(serverAddress,
-                serverPort); DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {
+        try (Socket socket = new Socket(serverAddress, serverPort);
+             DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {
 
+            // Convert packages to the format that we received it from the server
             outputStream.writeInt(convertToBigEndian(dummyPackage.getId()));
             outputStream.writeInt(convertToBigEndian(dummyPackage.getLength()));
             outputStream.writeInt(convertToBigEndian(dummyPackage.getPackageId()));

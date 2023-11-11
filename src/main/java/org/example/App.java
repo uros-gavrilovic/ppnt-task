@@ -4,11 +4,10 @@ import org.example.model.NetworkPackage;
 import org.example.thread.KeyListenerThread;
 import org.example.thread.PackageHandlerThread;
 import org.example.util.AppConfig;
-import org.example.util.UtilFunctions;
-
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -21,11 +20,10 @@ public class App {
         String serverAddress = AppConfig.getServerAddress();
         int serverPort = AppConfig.getServerPort();
 
-        KeyListenerThread keyListenerThread = new KeyListenerThread();
+        KeyListenerThread keyListenerThread = new KeyListenerThread(); // Start listening for key presses.
 
-        int leftoverPackages = readPackagesFromFile().size();
-        if(leftoverPackages != 0)
-            System.out.println("There are " + leftoverPackages + " packages left from the previous session.");
+        ArrayList<NetworkPackage> packages = readFromFile();
+        System.out.println("Loaded " + packages.size() + " past packages.");
 
         try (Socket socket = new Socket(serverAddress, serverPort);
              DataInputStream dataInputStream = new DataInputStream(socket.getInputStream())) {
@@ -34,12 +32,15 @@ public class App {
 
             while (!keyListenerThread.isExitSignal()) {
                 NetworkPackage networkPackage = createNetworkPackage(dataInputStream);
+                packages.add(networkPackage);
                 System.out.println("IN: " + networkPackage);
 
-                PackageHandlerThread packageHandlerThread = new PackageHandlerThread(networkPackage, serverAddress, serverPort);
+                PackageHandlerThread packageHandlerThread =
+                        new PackageHandlerThread(networkPackage, serverAddress, serverPort);
                 executorService.execute(packageHandlerThread);
             }
             executorService.shutdownNow();
+            writeToFile(packages);
 
         } catch (IOException e) {
             e.printStackTrace();

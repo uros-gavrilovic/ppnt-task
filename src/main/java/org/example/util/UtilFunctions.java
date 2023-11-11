@@ -49,32 +49,73 @@ public class UtilFunctions {
         return packageBytes;
     }
 
-    public static List<NetworkPackage> readPackagesFromFile() {
-        List<NetworkPackage> networkPackages = new ArrayList<>();
+    public static void writeToFile(ArrayList<NetworkPackage> networkPackages) {
+        System.out.println("Saving " + networkPackages.size() + " packages to file...");
+        try (OutputStream fileOutputStream = new FileOutputStream("packages.dat");
+             ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream)) {
+
+            networkPackages.stream().forEach(networkPackage -> {
+                try {
+                    objectOutputStream.writeObject(networkPackage);
+                    System.out.println("Package (#" + networkPackage.getId() + ") saved to file!");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static ArrayList<NetworkPackage> readFromFile() {
+        ArrayList<NetworkPackage> networkPackages = new ArrayList<>();
 
         try (InputStream fileInputStream = new FileInputStream("packages.dat");
              ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream)) {
 
-            while (fileInputStream.available() > 0) {
-                NetworkPackage networkPackage = (NetworkPackage) objectInputStream.readObject();
-
-                if (networkPackage instanceof DummyPackage) {
-                    DummyPackage dummyPackage = (DummyPackage) networkPackage;
-                    System.out.println("Read DummyPackage: " + dummyPackage);
-                } else if (networkPackage instanceof CancelPackage) {
-                    CancelPackage cancelPackage = (CancelPackage) networkPackage;
-                    System.out.println("Read CancelPackage: " + cancelPackage);
+            Object object;
+            while ((object = objectInputStream.readObject()) != null) {
+                if (object instanceof NetworkPackage) {
+                    networkPackages.add((NetworkPackage) object);
                 }
-
-                networkPackages.add(networkPackage);
             }
-
+        } catch (FileNotFoundException e) {
+            System.out.println("Package history not found.");
         } catch (IOException | ClassNotFoundException e) {
-            System.out.println(e);
-            return networkPackages;
+            // If an error occurs, return an empty list.
+            e.printStackTrace();
         }
 
         return networkPackages;
+    }
+
+    public static List<DummyPackage> grabIncompleteDummyPackages(List<NetworkPackage> packages) {
+        List<DummyPackage> incompleteDummyPackages = new ArrayList<>();
+
+        packages.stream().forEach(networkPackage -> {
+            if (networkPackage instanceof DummyPackage) {
+                if (!((DummyPackage) networkPackage).isCompleted()) {
+                    incompleteDummyPackages.add((DummyPackage) networkPackage);
+                }
+            }
+        });
+
+        return incompleteDummyPackages;
+    }
+
+    public static List<DummyPackage> grabExpiredDummyPackages(List<NetworkPackage> packages) {
+        List<DummyPackage> expiredDummyPackages = new ArrayList<>();
+
+        packages.stream().forEach(networkPackage -> {
+            if (networkPackage instanceof DummyPackage) {
+                if (((DummyPackage) networkPackage).getValidUntil().isBefore(LocalTime.now())) {
+                    expiredDummyPackages.add((DummyPackage) networkPackage);
+                }
+            }
+        });
+
+        return expiredDummyPackages;
     }
 
     public static int convertToLittleEndian(byte[] byteArray) {
