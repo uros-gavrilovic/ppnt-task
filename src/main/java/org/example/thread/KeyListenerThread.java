@@ -11,7 +11,6 @@ import java.io.IOException;
 public class KeyListenerThread extends Thread {
     private volatile boolean exitSignal = false;
 
-
     public KeyListenerThread() {
         setDaemon(true); // Set the thread as a daemon to terminate when the main thread exits
         start(); // Start the key listener thread

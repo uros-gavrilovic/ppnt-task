@@ -14,7 +14,7 @@ import java.util.List;
  */
 public class UtilFunctions {
     /**
-     * The size of each data segment in bytes specified in the package specification.
+     * The size of each data segment in bytes in the package specification.
      */
     private static final int DATA_SIZE = 4;
 
@@ -28,7 +28,6 @@ public class UtilFunctions {
      */
     public static NetworkPackage createNetworkPackage(DataInputStream dataInputStream) throws IOException {
         NetworkPackage networkPackage;
-        byte[] packageBytes = new byte[DATA_SIZE];
 
         // Reads 4 bytes (DATA_SIZE) and converts those bytes into an integer following little endian format
         int packageId = bytesToInt(readPackageBytes(dataInputStream));
@@ -90,12 +89,12 @@ public class UtilFunctions {
                     objectOutputStream.writeObject(networkPackage);
                     System.out.println("Package (#" + networkPackage.getId() + ") saved to file!");
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    System.err.println("Package (#" + networkPackage.getId() + ") failed to be saved to file!");
                 }
             });
 
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Unable to save packages to file!");
         }
     }
 
@@ -104,22 +103,19 @@ public class UtilFunctions {
      * The package contents should be converted to a suitable format before writing to the socket.
      *
      * @param dummyPackage The package that we want to write to the socket.
-     * @param serverAddress The address of the server.
-     * @param serverPort The port of the server.
      */
-    public static void writeToSocket(DummyPackage dummyPackage, String serverAddress, int serverPort) {
-        try (Socket socket = new Socket(serverAddress, serverPort);
-             DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {
+    public static void writeToSocket(DummyPackage dummyPackage) throws IOException{
+        Socket socket = new SocketConnectionFactory().connect();
+        DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
 
-            // Convert packages to the format of little endian like it was received from the server
-            outputStream.write(intToBytes(dummyPackage.getPackageId()));
-            outputStream.write(intToBytes(dummyPackage.getLength()));
-            outputStream.write(intToBytes(dummyPackage.getId()));
-            outputStream.write(intToBytes(dummyPackage.getDelay()));
+        // Convert packages to the format of little endian like it was received from the server
+        outputStream.write(intToBytes(dummyPackage.getPackageId()));
+        outputStream.write(intToBytes(dummyPackage.getLength()));
+        outputStream.write(intToBytes(dummyPackage.getId()));
+        outputStream.write(intToBytes(dummyPackage.getDelay()));
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        socket.close();
+        outputStream.close();
     }
 
     /**
@@ -145,7 +141,7 @@ public class UtilFunctions {
             // Do nothing.
         } catch (IOException | ClassNotFoundException e) {
             // If an error occurs, return an empty list.
-            e.printStackTrace();
+            System.err.println("Unable to deserialize packages from file!");
         }
 
         return networkPackages;
