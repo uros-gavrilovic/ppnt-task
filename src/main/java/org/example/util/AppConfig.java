@@ -9,6 +9,7 @@ import java.util.Properties;
 public class AppConfig {
     private static final Properties properties = new Properties();
 
+
     static {
         try (InputStream input = AppConfig.class.getClassLoader().getResourceAsStream("config.properties")) {
             if (input == null) {

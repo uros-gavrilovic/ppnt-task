@@ -15,6 +15,7 @@ public class PackageHandlerThread implements Runnable {
     private final String serverAddress;
     private final int serverPort;
 
+
     /**
      * Function that handles the package that we received from the server.
      */

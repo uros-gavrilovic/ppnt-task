@@ -3,15 +3,15 @@ package org.example.util;
 import org.example.model.CancelPackage;
 import org.example.model.DummyPackage;
 import org.example.model.NetworkPackage;
-
 import java.io.*;
 import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Utility class that contains functions that are used in multiple places.
+ */
 public class UtilFunctions {
     /**
      * The size of each data segment in bytes specified in the package specification.
@@ -27,11 +27,12 @@ public class UtilFunctions {
      * @throws IOException If an error occurs while reading the data.
      */
     public static NetworkPackage createNetworkPackage(DataInputStream dataInputStream) throws IOException {
+        NetworkPackage networkPackage;
         byte[] packageBytes = new byte[DATA_SIZE];
 
-        int packageId = convertToLittleEndian(readPackageBytes(dataInputStream));
+        // Reads 4 bytes (DATA_SIZE) and converts those bytes into an integer following little endian format
+        int packageId = bytesToInt(readPackageBytes(dataInputStream));
 
-        NetworkPackage networkPackage;
         switch (packageId) {
             case 1:
                 networkPackage = new DummyPackage();
@@ -43,12 +44,11 @@ public class UtilFunctions {
                 throw new IllegalArgumentException("Unknown package ID: " + packageId);
         }
 
-        networkPackage.setLength(convertToLittleEndian(readPackageBytes(dataInputStream)));
-        networkPackage.setId(convertToLittleEndian(readPackageBytes(dataInputStream)));
+        networkPackage.setLength(bytesToInt(readPackageBytes(dataInputStream)));
+        networkPackage.setId(bytesToInt(readPackageBytes(dataInputStream)));
 
         if (networkPackage instanceof DummyPackage) {
-            dataInputStream.readFully(packageBytes);
-            ((DummyPackage) networkPackage).setDelay(convertToLittleEndian(packageBytes));
+            ((DummyPackage) networkPackage).setDelay(bytesToInt(readPackageBytes(dataInputStream)));
             LocalTime expiresAt = LocalTime.now().plusSeconds(((DummyPackage) networkPackage).getDelay());
             ((DummyPackage) networkPackage).setValidUntil(expiresAt);
         }
@@ -57,16 +57,22 @@ public class UtilFunctions {
     }
 
     /**
-     * Function that reads X amount of bytes from the stream and returns them as a byte array.
+     * Function that reads DATA_SIZE amount of bytes from the stream and returns them as a byte array.
      * Based on package specification, currently it's 4 bytes per data segment.
      *
      * @param dataInputStream The stream that we read the data from.
      * @return A byte array containing the data.
      * @throws IOException If an error occurs while reading the data.
      */
-    public static byte[] readPackageBytes(DataInputStream dataInputStream) throws IOException {
+    private static byte[] readPackageBytes(DataInputStream dataInputStream) throws IOException {
         byte[] packageBytes = new byte[DATA_SIZE];
         dataInputStream.readFully(packageBytes);
+
+//        for(int i = 0; i < packageBytes.length; i++) {
+//            System.out.println("Byte (#" + i + "): " + packageBytes[i]);
+//        }
+//        System.out.println("------- NEW DATA SEGMENT -------");
+
         return packageBytes;
     }
 
@@ -93,9 +99,10 @@ public class UtilFunctions {
         }
     }
 
-
     /**
      * Function that writes the package to the socket.
+     * The package contents should be converted to a suitable format before writing to the socket.
+     *
      * @param dummyPackage The package that we want to write to the socket.
      * @param serverAddress The address of the server.
      * @param serverPort The port of the server.
@@ -104,11 +111,11 @@ public class UtilFunctions {
         try (Socket socket = new Socket(serverAddress, serverPort);
              DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {
 
-            // Convert packages to the format that we received it from the server
-            outputStream.writeInt(convertToBigEndian(dummyPackage.getId()));
-            outputStream.writeInt(convertToBigEndian(dummyPackage.getLength()));
-            outputStream.writeInt(convertToBigEndian(dummyPackage.getPackageId()));
-            outputStream.writeInt(convertToBigEndian(dummyPackage.getDelay()));
+            // Convert packages to the format of little endian like it was received from the server
+            outputStream.write(intToBytes(dummyPackage.getPackageId()));
+            outputStream.write(intToBytes(dummyPackage.getLength()));
+            outputStream.write(intToBytes(dummyPackage.getId()));
+            outputStream.write(intToBytes(dummyPackage.getDelay()));
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -117,6 +124,7 @@ public class UtilFunctions {
 
     /**
      * Function that reads all packages from file and returns them as a list.
+     *
      * @return A list of packages that were read from the binary file.
      */
     public static ArrayList<NetworkPackage> readFromFile() {
@@ -195,19 +203,28 @@ public class UtilFunctions {
 
     /**
      * Function that converts a byte array to an integer in little endian format.
-     * @param byteArray The byte array that we want to convert.
+     * eg. 0x01|00|00|00 -> 1 (in little endian format)
+     * eg. 0x00|00|00|01 -> 1 (in big endian format)
+     *
+     * @param bytes The byte array that we want to convert.
      * @return An integer in little endian format.
      */
-    public static int convertToLittleEndian(byte[] byteArray) {
-        return ByteBuffer.wrap(byteArray).order(ByteOrder.LITTLE_ENDIAN).getInt();
+    private static int bytesToInt(byte[] bytes) {
+        return ((bytes[3] & 0xFF) << 24) | ((bytes[2] & 0xFF) << 16) | ((bytes[1] & 0xFF) << 8) | (bytes[0] & 0xFF);
     }
 
     /**
-     * Function that converts an integer to big endian format.
-     * @param value The integer that we want to convert.
-     * @return An integer in big endian format.
+     * Function that returns a byte array representing an integer in little-endian format.
+     *
+     * @param value The integer value to convert.
+     * @return The byte array in little-endian format.
      */
-    public static int convertToBigEndian(int value) {
-        return Integer.reverseBytes(value);
+    private static byte[] intToBytes(int value) {
+        byte[] bytes = new byte[4];
+        bytes[0] = (byte) (value & 0xFF);
+        bytes[1] = (byte) ((value >> 8) & 0xFF);
+        bytes[2] = (byte) ((value >> 16) & 0xFF);
+        bytes[3] = (byte) ((value >> 24) & 0xFF);
+        return bytes;
     }
 }

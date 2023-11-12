@@ -19,6 +19,7 @@ public class DummyPackage extends NetworkPackage {
      */
     private boolean completed;
 
+
     public DummyPackage() {
         this.setPackageId(1);
     }
