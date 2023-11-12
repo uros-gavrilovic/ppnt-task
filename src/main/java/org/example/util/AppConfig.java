@@ -3,6 +3,9 @@ package org.example.util;
 import java.io.InputStream;
 import java.util.Properties;
 
+/**
+ * Class that reads the config.properties file and provides the values to the application.
+ */
 public class AppConfig {
     private static final Properties properties = new Properties();
 

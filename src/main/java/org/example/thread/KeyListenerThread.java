@@ -4,6 +4,9 @@ import lombok.Getter;
 
 import java.io.IOException;
 
+/**
+ * A thread that listens for any key press and sets the exit signal to true.
+ */
 @Getter
 public class KeyListenerThread extends Thread {
     private volatile boolean exitSignal = false;
